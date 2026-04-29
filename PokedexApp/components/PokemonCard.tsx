@@ -1,19 +1,26 @@
 import React from 'react';
-import { View, Text, Image, StyleSheet } from 'react-native';
+import { View, Text, Image, StyleSheet, TouchableOpacity } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import { StackNavigationProp } from '@react-navigation/stack';
 import { Pokemon } from '../types/Pokemon';
-import { capitalize } from '../utils/format'; // Importando a utilitária
+import { capitalize } from '../utils/format'; 
+import { RootStackParamList } from '../App';
 
 interface Props {
     pokemon: Pokemon;
 }
 
 export const PokemonCard = ({ pokemon }: Props) => {
+    const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
+
     return (
-        <View style={styles.card}>
-            <Image source={{ uri: pokemon.image }} style={styles.image} />
-            {/* Aplicando a função capitalize aqui */}
-            <Text style={styles.name}>{capitalize(pokemon.name)}</Text>
-        </View>
+        <TouchableOpacity 
+        style={styles.card} 
+        onPress={() => navigation.navigate('Details', { pokemon })}
+        >
+        <Image source={{ uri: pokemon.image }} style={styles.image} />
+        <Text style={styles.name}>{capitalize(pokemon.name)}</Text>
+        </TouchableOpacity>
     );
 };
 
