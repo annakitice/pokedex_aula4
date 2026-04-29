@@ -8,13 +8,11 @@ export const PokedexScreen = () => {
     const [pokemons, setPokemons] = useState<Pokemon[]>([]);
     const [search, setSearch] = useState('');
     
-    // Novos estados para gerenciamento da requisição
     const [isLoading, setIsLoading] = useState<boolean>(true);
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
         const fetchData = async () => {
-        // Garante que o loading está ativo e zera os erros antes de tentar buscar
         setIsLoading(true);
         setError(null);
         
@@ -23,10 +21,8 @@ export const PokedexScreen = () => {
             const details = await Promise.all(list.map(p => getPokemonDetails(p.url)));
             setPokemons(details);
         } catch (err) {
-            // Se a Promise for rejeitada no arquivo api.ts, o catch captura aqui
             setError('Falha ao carregar Pokémons. Verifique sua conexão.');
         } finally {
-            // O bloco finally sempre executa, independente de sucesso ou erro
             setIsLoading(false);
         }
         };
@@ -35,6 +31,19 @@ export const PokedexScreen = () => {
     }, []);
 
     const filtered = pokemons.filter(p => p.name.includes(search.toLowerCase()));
+
+    // Função que retorna o componente de lista vazia
+    const renderEmptyList = () => {
+        return (
+        <View style={styles.emptyContainer}>
+            <Text style={styles.emptyText}>
+            {search.trim() !== '' 
+                ? `Nenhum Pokémon encontrado para '${search}'`
+                : 'Nenhum Pokémon para exibir no momento.'}
+            </Text>
+        </View>
+        );
+    };
 
     return (
         <View style={styles.container}>
@@ -46,7 +55,6 @@ export const PokedexScreen = () => {
             onChangeText={setSearch}
         />
 
-        {/* Renderização Condicional baseada nos estados */}
         {isLoading ? (
             <View style={styles.centerBox}>
             <ActivityIndicator size="large" color="#e3350d" />
@@ -62,8 +70,10 @@ export const PokedexScreen = () => {
             keyExtractor={item => item.id.toString()}
             numColumns={2}
             renderItem={({ item }) => <PokemonCard pokemon={item} />}
-            // Pequeno bônus: esconde a barra de rolagem lateral
-            showsVerticalScrollIndicator={false} 
+            showsVerticalScrollIndicator={false}
+            ListEmptyComponent={renderEmptyList}
+            // Garante que o contêiner vazio ocupe a tela toda para centralizar o texto
+            contentContainerStyle={filtered.length === 0 ? styles.emptyListContent : null}
             />
         )}
         </View>
@@ -79,7 +89,6 @@ const styles = StyleSheet.create({
         borderRadius: 8,
         marginBottom: 20,
     },
-    // Novos estilos para centralizar o loading e erro
     centerBox: {
         flex: 1,
         justifyContent: 'center',
@@ -91,9 +100,24 @@ const styles = StyleSheet.create({
         color: '#666',
     },
     errorText: {
-        color: '#d9534f', // Um tom de vermelho
+        color: '#d9534f',
         fontSize: 16,
         fontWeight: 'bold',
         textAlign: 'center',
+    },
+    emptyContainer: {
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginTop: 40,
+    },
+    emptyText: {
+        fontSize: 16,
+        color: '#666',
+        textAlign: 'center',
+        fontStyle: 'italic',
+    },
+    emptyListContent: {
+        flexGrow: 1,
+        justifyContent: 'center',
     }
 });
