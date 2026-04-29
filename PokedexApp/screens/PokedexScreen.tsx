@@ -1,19 +1,19 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, FlatList, TextInput, StyleSheet, ActivityIndicator } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context'; 
 import { getPokemons, getPokemonDetails } from '../services/api';
 import { Pokemon } from '../types/Pokemon';
 import { PokemonCard } from '../components/PokemonCard';
 
-const LIMIT = 30; // Extrai o limite para uma constante
+const LIMIT = 30;
 
 export const PokedexScreen = () => {
+    const insets = useSafeAreaInsets(); // Obtendo os valores dinâmicos
+    
     const [pokemons, setPokemons] = useState<Pokemon[]>([]);
     const [search, setSearch] = useState('');
-    
     const [isLoading, setIsLoading] = useState<boolean>(true);
     const [error, setError] = useState<string | null>(null);
-
-    // Novos estados para a rolagem infinita
     const [offset, setOffset] = useState<number>(0);
     const [isLoadingMore, setIsLoadingMore] = useState<boolean>(false);
 
@@ -21,7 +21,6 @@ export const PokedexScreen = () => {
         const fetchInitialData = async () => {
         setIsLoading(true);
         setError(null);
-        
         try {
             const list = await getPokemons(LIMIT, 0);
             const details = await Promise.all(list.map(p => getPokemonDetails(p.url)));
@@ -32,57 +31,30 @@ export const PokedexScreen = () => {
             setIsLoading(false);
         }
         };
-        
         fetchInitialData();
     }, []);
 
-    // Função para carregar mais itens
     const loadMorePokemons = async () => {
-        // Impede chamadas se já estiver carregando, se houver erro, 
-        // ou se o usuário estiver fazendo uma busca local
         if (isLoadingMore || isLoading || error || search.trim() !== '') return;
-
         setIsLoadingMore(true);
         try {
-        const nextOffset = offset + LIMIT;
-        const list = await getPokemons(LIMIT, nextOffset);
-        const details = await Promise.all(list.map(p => getPokemonDetails(p.url)));
-        
-        // Adiciona os novos pokémons mantendo os antigos
-        setPokemons(prevPokemons => [...prevPokemons, ...details]);
-        setOffset(nextOffset);
+            const nextOffset = offset + LIMIT;
+            const list = await getPokemons(LIMIT, nextOffset);
+            const details = await Promise.all(list.map(p => getPokemonDetails(p.url)));
+            setPokemons(prev => [...prev, ...details]);
+            setOffset(nextOffset);
         } catch (err) {
-        console.error('Erro ao carregar mais pokémons:', err);
-        // Aqui poderia setar um estado específico para erro no carregamento extra
+            console.error(err);
         } finally {
-        setIsLoadingMore(false);
+            setIsLoadingMore(false);
         }
     };
 
     const filtered = pokemons.filter(p => p.name.includes(search.toLowerCase()));
 
-    const renderEmptyList = () => (
-        <View style={styles.emptyContainer}>
-        <Text style={styles.emptyText}>
-            {search.trim() !== '' 
-            ? `Nenhum Pokémon encontrado para '${search}'`
-            : 'Nenhum Pokémon para exibir no momento.'}
-        </Text>
-        </View>
-    );
-
-    // Desafio extra: Rodapé de carregamento
-    const renderFooter = () => {
-        if (!isLoadingMore) return null;
-        return (
-        <View style={styles.footerContainer}>
-            <ActivityIndicator size="large" color="#e3350d" />
-        </View>
-        );
-    };
-
     return (
-        <View style={styles.container}>
+        // paddingTop dinâmico vindo do hook aqui
+        <View style={[styles.container, { paddingTop: insets.top + 10 }]}>
         <Text style={styles.title}>Pokédex</Text>
 
         <TextInput
@@ -107,13 +79,23 @@ export const PokedexScreen = () => {
             numColumns={2}
             renderItem={({ item }) => <PokemonCard pokemon={item} />}
             showsVerticalScrollIndicator={false}
-            ListEmptyComponent={renderEmptyList}
-            contentContainerStyle={filtered.length === 0 ? styles.emptyListContent : null}
-            
-            // Rolagem Infinita:
+            ListEmptyComponent={() => (
+                <View style={styles.emptyContainer}>
+                <Text style={styles.emptyText}>
+                    {search.trim() !== '' 
+                    ? `Nenhum Pokémon encontrado para '${search}'`
+                    : 'Nenhum Pokémon para exibir no momento.'}
+                </Text>
+                </View>
+            )}
+            contentContainerStyle={filtered.length === 0 ? styles.emptyListContent : { paddingBottom: insets.bottom + 20 }}
             onEndReached={loadMorePokemons}
-            onEndReachedThreshold={0.1} // Chama a função quando chegar a 10% do fim da lista
-            ListFooterComponent={renderFooter}
+            onEndReachedThreshold={0.1}
+            ListFooterComponent={() => isLoadingMore ? (
+                <View style={styles.footerContainer}>
+                <ActivityIndicator size="large" color="#e3350d" />
+                </View>
+            ) : null}
             />
         )}
         </View>
@@ -121,48 +103,57 @@ export const PokedexScreen = () => {
 };
 
 const styles = StyleSheet.create({
-    container: { flex: 1, paddingTop: 60, paddingHorizontal: 16 },
-    title: { fontSize: 32, fontWeight: 'bold', marginBottom: 12 },
+    container: { 
+        flex: 1, 
+        paddingHorizontal: 16 
+        // paddingTop removido daqui para ser dinâmico lá em cima
+    },
+    title: { 
+        fontSize: 32, 
+        fontWeight: 'bold', 
+        marginBottom: 12 
+    },
     input: {
         backgroundColor: '#f1f1f1',
         padding: 10,
         borderRadius: 8,
         marginBottom: 20,
     },
-    centerBox: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
+    centerBox: { 
+        flex: 1, 
+        justifyContent: 
+        'center', 
+        alignItems: 'center' 
     },
-    loadingText: {
+    loadingText: { 
         marginTop: 10,
-        fontSize: 16,
-        color: '#666',
+        fontSize: 16, 
+        color: '#666' 
     },
-    errorText: {
-        color: '#d9534f',
-        fontSize: 16,
-        fontWeight: 'bold',
-        textAlign: 'center',
+    errorText: { 
+        color: '#d9534f', 
+        fontSize: 16, 
+        fontWeight: 'bold', 
+        textAlign: 'center' 
     },
-    emptyContainer: {
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginTop: 40,
+    emptyContainer: { 
+        alignItems: 'center', 
+        justifyContent: 'center', 
+        marginTop: 40 
     },
-    emptyText: {
-        fontSize: 16,
-        color: '#666',
-        textAlign: 'center',
-        fontStyle: 'italic',
+    emptyText: { 
+        fontSize: 16, 
+        color: '#666', 
+        textAlign: 'center', 
+        fontStyle: 'italic' 
     },
-    emptyListContent: {
-        flexGrow: 1,
-        justifyContent: 'center',
+    emptyListContent: { 
+        flexGrow: 1, 
+        justifyContent: 'center' 
     },
-    footerContainer: {
-        paddingVertical: 20,
-        justifyContent: 'center',
-        alignItems: 'center',
+    footerContainer: { 
+        paddingVertical: 20, 
+        justifyContent: 'center', 
+        alignItems: 'center' 
     }
 });
