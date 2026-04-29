@@ -4,6 +4,8 @@ import { getPokemons, getPokemonDetails } from '../services/api';
 import { Pokemon } from '../types/Pokemon';
 import { PokemonCard } from '../components/PokemonCard';
 
+const LIMIT = 30; // Extrai o limite para uma constante
+
 export const PokedexScreen = () => {
     const [pokemons, setPokemons] = useState<Pokemon[]>([]);
     const [search, setSearch] = useState('');
@@ -11,13 +13,17 @@ export const PokedexScreen = () => {
     const [isLoading, setIsLoading] = useState<boolean>(true);
     const [error, setError] = useState<string | null>(null);
 
+    // Novos estados para a rolagem infinita
+    const [offset, setOffset] = useState<number>(0);
+    const [isLoadingMore, setIsLoadingMore] = useState<boolean>(false);
+
     useEffect(() => {
-        const fetchData = async () => {
+        const fetchInitialData = async () => {
         setIsLoading(true);
         setError(null);
         
         try {
-            const list = await getPokemons(30);
+            const list = await getPokemons(LIMIT, 0);
             const details = await Promise.all(list.map(p => getPokemonDetails(p.url)));
             setPokemons(details);
         } catch (err) {
@@ -27,20 +33,50 @@ export const PokedexScreen = () => {
         }
         };
         
-        fetchData();
+        fetchInitialData();
     }, []);
+
+    // Função para carregar mais itens
+    const loadMorePokemons = async () => {
+        // Impede chamadas se já estiver carregando, se houver erro, 
+        // ou se o usuário estiver fazendo uma busca local
+        if (isLoadingMore || isLoading || error || search.trim() !== '') return;
+
+        setIsLoadingMore(true);
+        try {
+        const nextOffset = offset + LIMIT;
+        const list = await getPokemons(LIMIT, nextOffset);
+        const details = await Promise.all(list.map(p => getPokemonDetails(p.url)));
+        
+        // Adiciona os novos pokémons mantendo os antigos
+        setPokemons(prevPokemons => [...prevPokemons, ...details]);
+        setOffset(nextOffset);
+        } catch (err) {
+        console.error('Erro ao carregar mais pokémons:', err);
+        // Aqui poderia setar um estado específico para erro no carregamento extra
+        } finally {
+        setIsLoadingMore(false);
+        }
+    };
 
     const filtered = pokemons.filter(p => p.name.includes(search.toLowerCase()));
 
-    // Função que retorna o componente de lista vazia
-    const renderEmptyList = () => {
-        return (
+    const renderEmptyList = () => (
         <View style={styles.emptyContainer}>
-            <Text style={styles.emptyText}>
+        <Text style={styles.emptyText}>
             {search.trim() !== '' 
-                ? `Nenhum Pokémon encontrado para '${search}'`
-                : 'Nenhum Pokémon para exibir no momento.'}
-            </Text>
+            ? `Nenhum Pokémon encontrado para '${search}'`
+            : 'Nenhum Pokémon para exibir no momento.'}
+        </Text>
+        </View>
+    );
+
+    // Desafio extra: Rodapé de carregamento
+    const renderFooter = () => {
+        if (!isLoadingMore) return null;
+        return (
+        <View style={styles.footerContainer}>
+            <ActivityIndicator size="large" color="#e3350d" />
         </View>
         );
     };
@@ -72,8 +108,12 @@ export const PokedexScreen = () => {
             renderItem={({ item }) => <PokemonCard pokemon={item} />}
             showsVerticalScrollIndicator={false}
             ListEmptyComponent={renderEmptyList}
-            // Garante que o contêiner vazio ocupe a tela toda para centralizar o texto
             contentContainerStyle={filtered.length === 0 ? styles.emptyListContent : null}
+            
+            // Rolagem Infinita:
+            onEndReached={loadMorePokemons}
+            onEndReachedThreshold={0.1} // Chama a função quando chegar a 10% do fim da lista
+            ListFooterComponent={renderFooter}
             />
         )}
         </View>
@@ -119,5 +159,10 @@ const styles = StyleSheet.create({
     emptyListContent: {
         flexGrow: 1,
         justifyContent: 'center',
+    },
+    footerContainer: {
+        paddingVertical: 20,
+        justifyContent: 'center',
+        alignItems: 'center',
     }
 });
