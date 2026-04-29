@@ -150,12 +150,13 @@ const styles = StyleSheet.create({
     sectionTitle: { 
         fontSize: 20, 
         fontWeight: 'bold', 
-        marginBottom: 10
+        marginBottom: 10,
+        textAlign: 'center', 
      },
     description: { 
         fontSize: 16, 
         color: '#444', 
         lineHeight: 24, 
-        textAlign: 'justify' 
+        textAlign: 'center' 
     }
 });
